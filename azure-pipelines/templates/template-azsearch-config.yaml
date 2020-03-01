@@ -1,0 +1,45 @@
+# Azure Search Configuration
+# Configuration via AZSearch REST API. Request bodies will be dynamically gernerated based on templates in src/search-schema/ folder. 
+
+parameters:
+    searchName:
+    searchAdminKey:
+    searchIndex:
+    searchIndexer:
+    searchDataSource:
+  
+steps:
+- task: replacetokens@3
+  displayName: 'Replace tokens datasource.json'
+  inputs:
+    rootDirectory: 'src/search-schema/'
+    targetFiles: 'datasource.json'
+    encoding: 'auto'
+    keepToken: false
+    tokenPrefix: '#{'
+    tokenSuffix: '}#'
+
+- task: replacetokens@3
+  displayName: 'Replace tokens indexer.json'
+  inputs:
+    rootDirectory: 'src/search-schema/'
+    targetFiles: 'indexer.json'
+    encoding: 'auto'
+    keepToken: false
+    tokenPrefix: '#{'
+    tokenSuffix: '}#'
+
+- bash: |
+    az rest --method put --uri https://${{parameters.searchName}}.search.windows.net/datasources/${{parameters.searchDataSource}}?api-version=2017-11-11 --headers api-key=${{parameters.searchAdminKey}} Content-Type=application/json --body @$(Build.SourcesDirectory)/src/search-schema/datasource.json --skip-authorization-header
+  displayName: 'Create DataSource'
+  failOnStderr: true
+
+- bash: |
+    az rest --method put --uri https://${{parameters.searchName}}.search.windows.net/indexes/${{parameters.searchIndex}}?api-version=2017-11-11 --headers api-key=${{parameters.searchAdminKey}} Content-Type=application/json --body @$(Build.SourcesDirectory)/src/search-schema/index.json --skip-authorization-header
+  displayName: 'Create Index'
+  failOnStderr: true
+
+- bash: |
+    az rest --method put --uri https://${{parameters.searchName}}.search.windows.net/indexers/${{parameters.searchIndexer}}?api-version=2017-11-11 --headers api-key=${{parameters.searchAdminKey}} Content-Type=application/json --body @$(Build.SourcesDirectory)/src/search-schema/indexer.json --skip-authorization-header
+  displayName: 'Create Indexer'
+  failOnStderr: true

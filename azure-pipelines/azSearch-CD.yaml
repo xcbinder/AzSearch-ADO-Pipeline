@@ -1,0 +1,63 @@
+# Azure Search CD pipeline will configure the AZSearch Index, Datasource, Indexer and wires it up with the storage
+# Requires resources: Storage, Keyvault, AzSearch, Variable group containing the secrets
+# Required variables to set: appInstanceName
+
+trigger: none
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+variables:
+# Secrets from KeyVault $(searchAdminKey) $(storageConnectionString)
+- group: AzSearchSecrets #default
+
+# Pipeline
+- name: agentPool
+  value: 'ubuntu-latest'
+  
+# AZSearch resource definitions
+- name: appInstanceName     
+  value: myenvxxx #required needs to match IaC envInstanceName
+- name: search-name
+  value: $(appInstanceName)-search
+- name: search-index
+  value: $(appInstanceName)-index
+- name: search-indexer
+  value: $(appInstanceName)-indexer
+- name: search-datasource
+  value: $(appInstanceName)-datasource
+
+# BlobStorage resource definitions
+- name: storageDataContainerName
+  value: azsearch-data #default
+
+# AZSearch schema tokens will be replaced in the AZsearch schema json definitions located in folder search-schema
+- name: DATASOURCE.NAME
+  value: $(search-datasource)
+- name: DATASOURCE.DESCRIPTION
+  value: 'AZSearch datasource'
+- name: DATASOURCE.CONTAINERNAME
+  value: $(storageDataContainerName)
+- name: DATASOURCE.CONNECTIONSTRING
+  value: $(storageConnectionString)
+- name: INDEXER.DATASOURCENAME
+  value: $(search-datasource)
+- name: INDEXER.INDEXNAME
+  value: $(search-index)
+
+stages:
+- stage: ConfigureAzureSearch
+  displayName: DEV
+  jobs:
+  - job: ProvisionDataSourceIndexIndexer
+    displayName: Configure Azure Search
+    pool: 
+      vmImage: $(agentPool)
+
+    steps:
+    - template: ./templates/template-azsearch-config.yaml
+      parameters:
+        searchName: $(search-name)
+        searchAdminKey: $(searchAdminKey)
+        searchIndex: $(search-index)
+        searchIndexer: $(search-indexer)
+        searchDataSource: $(search-datasource)

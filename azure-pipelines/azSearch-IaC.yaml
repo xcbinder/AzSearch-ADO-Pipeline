@@ -1,0 +1,65 @@
+
+# Azure Search IaC pipeline will deploy AZSearch, KeyVault and Storage in  InstanceResourceGroup.
+# storageConnectionString and searchAdminKey will be directly saved in KeyVault
+# Required variables to set:  envInstanceName, azureServiceConnection, azureLocation
+
+trigger:
+  batch: 'true'
+  branches:
+    include:
+    - master
+  paths:
+      include:
+      - /src/azsearch-iac/*
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+variables:
+  envInstanceName: 'myenvxxx' #required [8 chars]
+  envInstanceResourceGroup: 'AzSearchRg' #default
+  azureLocation: 'westeurope' #required
+  azureServiceConnection: 'myAzureServiceConnectionName' #required
+  storageDataContainerName: 'azsearch-data' #default
+
+stages:
+
+- stage: Deploy_Env
+  jobs:
+  - job: DeployInfrastructure
+    displayName: Deploy KeyVault, Storage and AzSearch
+    pool: 
+      vmImage: 'ubuntu-latest'
+
+    steps:
+    # Prep the Linked artifact for the ARM deployment
+    - publish: 'src/azsearch-iac'
+      displayName: Get linked artifact for ARM deployment
+      artifact: azsearch-iac
+
+    - download: current
+      artifact: azsearch-iac
+      patterns: '**/*'
+    
+    # Get Service Principal Object ID which is required to set the KeyVault policy
+    - task: AzureCLI@1
+      displayName: 'Get Service Principal Object ID'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptLocation: inlineScript
+        inlineScript: |
+          spName=$(az account show --output tsv --query user.name)
+          spObjectId=$(az ad sp show --output tsv --query objectId --id $spName)
+          echo "##vso[task.setvariable variable=spObjectId;]$spObjectId"
+    
+    # Run the ARM deployment
+    - task: AzureResourceGroupDeployment@2
+      displayName: 'Deploy Infrastructure as Code - $(envInstanceName)'
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: '$(envInstanceResourceGroup)'
+        templateLocation: 'Linked artifact'
+        location: '$(azureLocation)'
+        deploymentMode: 'Incremental'
+        csmFile: '$(Pipeline.Workspace)/azsearch-iac/deploy-azsearch.json'
+        overrideParameters: '-envInstanceName $(envInstanceName) -storageDataContainerName $(storageDataContainerName) -spObjectId $(spObjectId)'

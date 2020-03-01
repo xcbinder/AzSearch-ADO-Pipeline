@@ -1,0 +1,219 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "envInstanceName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": { "description": "Environment Instance Name." }
+    },
+    "storageDataContainerName": {
+      "type": "string",
+      "defaultValue": "azsearch-data",
+      "metadata": { "description": "Container to store AzSearch data" }
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "defaultValue": "[subscription().tenantId]",
+      "metadata": {
+        "description": "Specifies the Azure Active Directory tenant ID that should be used for authenticating requests to the key vault. Get it by using Get-AzSubscription cmdlet."
+      }
+    },
+    "spObjectId": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "metadata": {
+        "description": "Specifies the object ID of a user, service principal or security group in the Azure Active Directory tenant for the vault. The object ID must be unique for the list of access policies. Get it by using Get-AzADUser, Get-AzADServicePrincipal cmdlets or AzureCLI az ad sp show --output tsv --query objectId --id http://<Your SP Name>"
+      }
+    }
+  },
+  "variables": {
+    "envInstanceName": "[toLower(parameters('envInstanceName'))]",
+    "azSearchName": "[concat(variables('envInstanceName'), '-search')]",
+    "azSearchServiceId": "[resourceId('Microsoft.Search/searchServices', variables('azSearchName'))]",
+    "keyVaultName": "[concat(variables('envInstanceName'),'-kv')]",
+    "storageName": "[concat(replace(variables('envInstanceName'), '-', ''),'strg')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "name": "[variables('keyVaultName')]",
+      "apiVersion": "2016-10-01",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "enabledForDeployment": false,
+        "enabledForDiskEncryption": false,
+        "enabledForTemplateDeployment": true,
+        "tenantId": "[subscription().tenantId]",
+        "accessPolicies": [],
+        "sku": {
+          "name": "Standard",
+          "family": "A"
+        }
+      },
+        "dependsOn": [
+        "[variables('storageName')]",
+        "[variables('azSearchName')]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/accessPolicies",
+      "name": "[concat(variables('keyVaultName'), '/add')]",
+      "apiVersion": "2018-02-14",
+      "properties":{
+        "accessPolicies":[
+          {
+            "tenantId": "[parameters('tenantId')]",
+            "objectId": "[parameters('spObjectId')]",
+            "permissions": {
+              "keys": [
+                "Get",
+                "List",
+                "Update",
+                "Create",
+                "Import",
+                "Delete",
+                "Recover",
+                "Backup",
+                "Restore"
+              ],
+              "secrets": [
+                "Get",
+                "List",
+                "Set",
+                "Delete",
+                "Recover",
+                "Backup",
+                "Restore"
+              ],
+              "certificates": [
+                "Get",
+                "List",
+                "Update",
+                "Create",
+                "Import",
+                "Delete",
+                "Recover",
+                "Backup",
+                "Restore",
+                "ManageContacts",
+                "ManageIssuers",
+                "GetIssuers",
+                "ListIssuers",
+                "SetIssuers",
+                "DeleteIssuers"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[variables('keyVaultName')]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "name": "[concat(variables('keyVaultName'), '/searchAdminKey')]",
+      "apiVersion": "2018-02-14",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+      ],
+      "properties": {
+        "value": "[listAdminKeys(variables('azSearchServiceId'), '2015-08-19').PrimaryKey]"
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "name": "[concat(variables('keyVaultName'), '/storageConnectionString')]",
+      "apiVersion": "2018-02-14",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+      ],
+      "properties": {
+        "value": "[concat('DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=', variables('storageName'), ';AccountKey=', listKeys(variables('storageName'), '2019-04-01').keys[0].value)]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "sku": {
+          "name": "Standard_LRS",
+          "tier": "Standard"
+      },
+      "kind": "StorageV2",
+      "name": "[variables('storageName')]",
+      "apiVersion": "2018-07-01",
+      "location": "[resourceGroup().location]",
+      "scale": null,
+      "properties": {
+          "networkAcls": {
+              "bypass": "AzureServices",
+              "virtualNetworkRules": [],
+              "ipRules": [],
+              "defaultAction": "Allow"
+          },
+          "supportsHttpsTrafficOnly": false,
+          "encryption": {
+              "services": {
+                  "file": {
+                      "enabled": true
+                  },
+                  "blob": {
+                      "enabled": true
+                  }
+              },
+              "keySource": "Microsoft.Storage"
+          },
+          "accessTier": "Hot"
+      },
+      "resources": [
+        {
+          "name": "[concat('default/', parameters('storageDataContainerName'))]",
+          "type": "blobServices/containers",
+          "apiVersion": "2018-07-01",
+          "dependsOn": [
+            "[variables('storageName')]"
+          ]
+        }
+      ],
+      "dependsOn": []
+    },
+    {
+      "name": "[variables('azSearchName')]",
+      "type": "Microsoft.Search/searchServices",
+      "apiVersion": "2015-08-19",
+      "location": "[resourceGroup().location]",
+      "tags": {},
+      "properties": {
+          "replicaCount": 1,
+          "partitionCount": 1,
+          "hostingMode": "default"
+      },
+      "sku": {
+          "name": "standard"
+      }
+    }
+  ],
+ "outputs": {
+    "keyvaultinstanceId": {
+      "value": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+      "type": "string"
+    },
+    "storageAccountId": {
+      "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]",
+      "type": "string"
+    },
+    "searchAdminKey": {
+      "value": "[listAdminKeys(variables('azSearchServiceId'), '2015-08-19').PrimaryKey]",
+      "type": "string"
+    },
+    "storageConnectionString": {
+      "value": "[concat('DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=', variables('storageName'), ';AccountKey=', listKeys(variables('storageName'), '2019-04-01').keys[0].value)]",
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,158 @@
+{
+    "fields": [
+      {
+        "name": "id",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": true,
+        "facetable": false,
+        "key": true
+      },
+      {
+        "name": "type",
+        "type": "Edm.String",
+        "searchable": false,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "transactionPatternId",
+        "type": "Edm.String",
+        "searchable": false,
+        "filterable": false,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "value",
+        "type": "Edm.Int32",
+        "searchable": false,
+        "filterable": false,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "currency",
+        "type": "Edm.String",
+        "searchable": false,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "bookingDate",
+        "type": "Edm.DateTimeOffset",
+        "searchable": false,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "valueDate",
+        "type": "Edm.DateTimeOffset",
+        "searchable": false,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "creditor",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "creditorBankCode",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "creditorAccountNumber",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "debtor",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "debtorBankCode",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "debtorAccountNumber",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "purpose",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "cleanPurpose",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "prebooked",
+        "type": "Edm.Boolean",
+        "searchable": false,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      },
+      {
+        "name": "bookingKey",
+        "type": "Edm.String",
+        "searchable": true,
+        "filterable": true,
+        "retrievable": true,
+        "sortable": false,
+        "facetable": false
+      }
+    ] 
+  }

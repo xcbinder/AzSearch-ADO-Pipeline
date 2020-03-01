@@ -1,0 +1,15 @@
+{
+    "dataSourceName" : "#{INDEXER.DATASOURCENAME}#",
+    "targetIndexName" : "#{INDEXER.INDEXNAME}#",
+    "parameters":
+    {
+      "batchSize": 100,
+        "maxFailedItems":-1,
+      "maxFailedItemsPerBatch":-1,
+      "configuration" : 
+      { 
+        "parsingMode" : "jsonArray", 
+        "dataToExtract" : "contentAndMetadata"
+      }
+    }
+  }

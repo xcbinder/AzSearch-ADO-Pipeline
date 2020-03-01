@@ -1,0 +1,88 @@
+# Azure Search CI pipeline will deploy a static json to the blob storage and run the indexer
+# This pipeline can be extended to run a data preperation task if need
+# Requires resources: Storage, Keyvault, AzSearch, Variable group containing the secrets
+# Required variables to set: azureServiceConnection, appInstanceName
+
+trigger:
+  batch: 'true'
+  branches:
+    include:
+    - master
+  paths:
+      include:
+      - /src/data/*
+
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+variables:
+# Secrets from KeyVault $(searchAdminKey)
+- group: AzSearchSecrets #default
+
+# Pipeline
+- name: azureServiceConnection
+  value: 'myAzureServiceConnectionName' #required
+- name: agentPool
+  value: 'ubuntu-latest'
+- name: searchDataArtifactName
+  value: ingestdata
+
+# AZSearch resource definitions
+- name: appInstanceName
+  value: myenvxxx #required needs to match IaC envInstanceName
+- name: search-name
+  value: $(appInstanceName)-search
+- name: search-indexer
+  value: $(appInstanceName)-indexer
+
+# Storage resources
+- name: storageAccountName
+  value: $(appInstanceName)strg
+- name: storageDataContainerName
+  value: azsearch-data #default
+
+stages:
+- stage: DeployIndextoStorage
+  displayName: Deploy index data to AZSearch
+  jobs:
+
+  #- job: DataPrep
+  #  displayName: Running data preparation task should be added here
+
+  - job: IngestData
+    #dependsOn: DataPrep
+    displayName: Ingest data to storage account
+    pool: 
+      vmImage: windows-latest # AzureFileCopy requires windows based agent
+
+    steps:
+    - publish: 'src/data'
+      displayName: Get static data from repo
+      artifact: $(searchDataArtifactName)
+
+    - download: current
+      artifact: $(searchDataArtifactName)
+      patterns: '**/*'
+      displayName: 'Download $(searchDataArtifactName) Artifact'
+
+    - task: AzureFileCopy@3
+      displayName: Deploy data to data Storage Account
+      inputs:
+        sourcePath: $(Pipeline.Workspace)\$(searchDataArtifactName)
+        azureSubscription: $(azureServiceConnection)
+        destination: azureBlob
+        storage: $(storageAccountName)
+        containerName: $(storageDataContainerName)
+      
+  - job: RunIndexer
+    dependsOn: IngestData
+    displayName: Run AzureSearch Indexer
+    pool: 
+      vmImage: $(agentPool)
+    
+    steps:
+      - bash: |
+            az rest --method post --uri "https://$(search-name).search.windows.net/indexers/$(search-indexer)/run?api-version=2019-05-06" --headers api-key=$(searchAdminKey) Content-Type=application/json --skip-authorization-header
+        displayName: 'Run Indexer'
+        failOnStderr: true
+
+    
